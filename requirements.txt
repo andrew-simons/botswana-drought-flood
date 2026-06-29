@@ -1,0 +1,29 @@
+# --- Google Earth Engine + geospatial I/O ---
+earthengine-api>=0.1.380
+geemap>=0.32
+xarray>=2024.1
+rioxarray>=0.15
+rasterio>=1.3
+zarr>=2.17
+
+# --- core scientific stack ---
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11           # gamma fit for SPI
+matplotlib>=3.8
+scikit-learn>=1.4
+
+# --- baselines + deep learning ---
+xgboost>=2.0
+torch>=2.2            # on Colab this is preinstalled; pin only if training locally
+
+# --- explainability (week 7) ---
+shap>=0.44
+captum>=0.7           # Integrated Gradients for PyTorch
+
+# --- demo app (week 8) ---
+streamlit>=1.33
+folium>=0.16
+
+# NOTE: in Google Colab, earthengine-api, geemap, torch, numpy, pandas are
+# already available. You mainly need:  pip install geemap rioxarray xgboost captum shap

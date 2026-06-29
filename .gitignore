@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Notebook outputs are stripped before commit (nbstripout or clear-all-outputs)
+
+# Data lives in Google Drive, NOT in git — only keep small metadata/pointers
+data/raw/
+data/processed/
+data/splits/
+*.tif
+*.tiff
+*.npy
+*.zarr/
+*.nc
+
+# Models (weights can be large; keep configs, push weights to HF Hub / releases)
+models/*.pt
+models/*.pth
+models/*.safetensors
+
+# Secrets
+*.key
+.env
+ee-credentials*.json
