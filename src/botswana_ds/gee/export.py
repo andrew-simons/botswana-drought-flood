@@ -134,6 +134,10 @@ def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", regio
 
     Wind speed requires combining two bands, so it gets its own function instead
     of a DROUGHT_CORE entry.
+
+    Strategy: pre-compute wind speed (single band) across the full collection,
+    then apply the identical monthly_reduce pattern used by every other channel.
+    This avoids any null-image or type-inference issues inside the mapped function.
     """
     _require_ee()
     region = region or botswana_geometry()
@@ -145,26 +149,33 @@ def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", regio
         .select(["u_component_of_wind_10m", "v_component_of_wind_10m"])
     )
 
+    def to_speed(img):
+        u = img.select("u_component_of_wind_10m")
+        v = img.select("v_component_of_wind_10m")
+        return (
+            u.pow(2).add(v.pow(2)).sqrt()
+            .rename("wind_speed")
+            .copyProperties(img, ["system:time_start"])
+        )
+
+    era5_speed = era5.map(to_speed)  # single-band "wind_speed" collection
+
+    # Identical to monthly_reduce: one image per month, fully masked for gaps.
     def per_month(m0):
         m0 = ee.Date(m0)
         m1 = m0.advance(1, "month")
-        monthly_col = era5.filterDate(m0, m1).select(
-            ["u_component_of_wind_10m", "v_component_of_wind_10m"]
-        )
-        # Fully-masked fallback placed first so real data (added via merge) always wins.
-        # mosaic() takes the last valid pixel — monthly_col images override the masked
-        # fallback wherever data exists; months with no data stay fully masked.
-        # This avoids ee.Algorithms.If which has type-inference issues inside map().
+        monthly = era5_speed.filterDate(m0, m1)
         filled = (
-            ee.Image.constant([0.0, 0.0])
-            .rename(["u_component_of_wind_10m", "v_component_of_wind_10m"])
+            ee.Image.constant(0.0)
+            .rename("wind_speed")
             .updateMask(ee.Image.constant(0))
         )
-        img = ee.ImageCollection([filled]).merge(monthly_col).mosaic()
-        u = img.select("u_component_of_wind_10m")
-        v = img.select("v_component_of_wind_10m")
-        speed = u.pow(2).add(v.pow(2)).sqrt().rename("wind_speed")
-        return speed.set("system:time_start", m0.millis()).clip(region)
+        img = ee.Algorithms.If(
+            monthly.size().gt(0),
+            monthly.mean().rename("wind_speed"),
+            filled,
+        )
+        return ee.Image(img).set("system:time_start", m0.millis()).clip(region)
 
     return ee.ImageCollection(month_starts(start, end).map(per_month))
 
