@@ -130,24 +130,15 @@ def monthly_chirps(start: str = "2003-01-01", end: str = "2024-01-01", region=No
 
 
 def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", region=None):
-    """ERA5-Land 10 m wind speed (m/s) = sqrt(u² + v²), monthly mean.
+    """ERA5-Land 10 m wind speed (m/s) = sqrt(u² + v²).
 
-    Wind speed requires combining two bands, so it gets its own function instead
-    of a DROUGHT_CORE entry.
-
-    Strategy: pre-compute wind speed (single band) across the full collection,
-    then apply the identical monthly_reduce pattern used by every other channel.
-    This avoids any null-image or type-inference issues inside the mapped function.
+    ERA5-Land MONTHLY_AGGR already delivers one image per month, so no
+    per-month reconstruction loop is needed. We map sqrt(u²+v²) directly
+    over the filtered collection — no ee.Algorithms.If, no nested maps,
+    no null-propagation paths.
     """
     _require_ee()
     region = region or botswana_geometry()
-
-    era5 = (
-        ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
-        .filterDate(start, end)
-        .filterBounds(region)
-        .select(["u_component_of_wind_10m", "v_component_of_wind_10m"])
-    )
 
     def to_speed(img):
         u = img.select("u_component_of_wind_10m")
@@ -155,29 +146,17 @@ def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", regio
         return (
             u.pow(2).add(v.pow(2)).sqrt()
             .rename("wind_speed")
-            .copyProperties(img, ["system:time_start"])
+            .set("system:time_start", img.get("system:time_start"))
+            .clip(region)
         )
 
-    era5_speed = era5.map(to_speed)  # single-band "wind_speed" collection
-
-    # Identical to monthly_reduce: one image per month, fully masked for gaps.
-    def per_month(m0):
-        m0 = ee.Date(m0)
-        m1 = m0.advance(1, "month")
-        monthly = era5_speed.filterDate(m0, m1)
-        filled = (
-            ee.Image.constant(0.0)
-            .rename("wind_speed")
-            .updateMask(ee.Image.constant(0))
-        )
-        img = ee.Algorithms.If(
-            monthly.size().gt(0),
-            monthly.mean().rename("wind_speed"),
-            filled,
-        )
-        return ee.Image(img).set("system:time_start", m0.millis()).clip(region)
-
-    return ee.ImageCollection(month_starts(start, end).map(per_month))
+    return (
+        ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
+        .filterDate(start, end)
+        .filterBounds(region)
+        .select(["u_component_of_wind_10m", "v_component_of_wind_10m"])
+        .map(to_speed)
+    )
 
 
 # ── Variable registry ─────────────────────────────────────────────────────────
