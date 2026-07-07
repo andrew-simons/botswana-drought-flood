@@ -2,7 +2,7 @@
 
 Cube structure
 --------------
-dynamic : (T, C_dyn, H, W) = (282, 9, 182, 188)  float32  ~350 MB
+dynamic : (T, C_dyn, H, W) = (282, 8, 182, 188)  float32  ~310 MB
 static  : (C_sta, H, W)    = (3, 182, 188)          float32  tiny
 labels  : (T, 3, H, W)     = (282, 3, 182, 188)    float32  ~116 MB
 mask    : (H, W)            = (182, 188)              bool     tiny
@@ -53,7 +53,8 @@ DYNAMIC_CHANNELS: list[tuple[str, str, float, float]] = [
     ("lst_c",      "lst_day_k_monthly_2003_2026.tif",  0.02,  -273.15),
     ("sm_surf",    "sm_surf_monthly_2015_2026.tif",    1.0,      0.0),  # 138 bands
     ("dewpoint_c", "dewpoint_k_monthly_2003_2026.tif", 1.0,   -273.15),
-    ("wind_ms",    "wind_speed_monthly_2003_2026.tif", 1.0,      0.0),
+    # wind_ms excluded: ERA5-Land wind speed export fails in GEE staging (null image bug).
+    # Re-add ("wind_ms", "wind_speed_monthly_2003_2026.tif", 1.0, 0.0) once resolved.
 ]
 
 # (channel_name, filename, band_index_in_file)
@@ -74,7 +75,7 @@ def load_tif(path: Path | str) -> np.ndarray:
 
 
 def build_dynamic(data_dir: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Load all 9 dynamic channels → (T=282, C=9, H, W) float32.
+    """Load all 8 dynamic channels → (T=282, C=8, H, W) float32.
 
     SMAP has only 138 bands (January 2015 onward). We create a full 282-band
     array pre-filled with NaN and place the SMAP values at t=144..281.
@@ -123,7 +124,7 @@ def build_labels(
 
     Parameters
     ----------
-    dynamic   : (T, 9, H, W) float32
+    dynamic   : (T, 8, H, W) float32
     mask      : (H, W) bool
     train_end : fit normalization stats on indices 0 … train_end-1 only
 
