@@ -2,9 +2,9 @@
 
 Cube structure
 --------------
-dynamic : (T, C_dyn, H, W) = (282, 8, 182, 188)  float32  ~310 MB
+dynamic : (T, C_dyn, H, W) = (252, 9, 182, 188)  float32  ~290 MB
 static  : (C_sta, H, W)    = (3, 182, 188)          float32  tiny
-labels  : (T, 3, H, W)     = (282, 3, 182, 188)    float32  ~116 MB
+labels  : (T, 3, H, W)     = (252, 3, 182, 188)    float32  ~104 MB
 mask    : (H, W)            = (182, 188)              bool     tiny
 meta.json                    — grid params, channel names, split dates
 
@@ -27,12 +27,12 @@ from .labels import spi3, anomaly, TRAIN_END
 # ── Grid constants ────────────────────────────────────────────────────────────
 _GRID = make_grid()
 H, W  = _GRID.shape        # 182, 188
-T     = 282                 # Jan 2003 – Jun 2026
+T     = 252                 # Jan 2003 – Dec 2023
 
-# SMAP export starts 2015-01 (bands before satellite availability are NaN).
-# January 2015 in the 282-month index: (2015-2003)*12 = 144
-SMAP_START = 144
-SMAP_N     = 138            # months from January 2015 to June 2026
+# SMAP (SPL4SMGP) data begins March 2015 — first 2 months (Jan–Feb 2015) are unavailable.
+# March 2015 in the 252-month index: (2015-2003)*12 + 2 = 146
+SMAP_START = 146
+SMAP_N     = 106            # months from March 2015 to December 2023
 
 # ── Channel definitions ───────────────────────────────────────────────────────
 # (channel_name, filename, scale_factor, offset)
@@ -45,16 +45,15 @@ SMAP_N     = 138            # months from January 2015 to June 2026
 #   CHIRPS, SMAP, wind: already in physical units
 
 DYNAMIC_CHANNELS: list[tuple[str, str, float, float]] = [
-    ("rain_mm",    "rain_mm_monthly_2003_2026.tif",    1.0,      0.0),
-    ("t2m_c",      "t2m_k_monthly_2003_2026.tif",      1.0,   -273.15),
-    ("ndvi",       "ndvi_monthly_2003_2026.tif",       1e-4,     0.0),
-    ("evi",        "evi_monthly_2003_2026.tif",        1e-4,     0.0),
-    ("et_mm",      "et_monthly_2003_2026.tif",         0.1,      0.0),
-    ("lst_c",      "lst_day_k_monthly_2003_2026.tif",  0.02,  -273.15),
-    ("sm_surf",    "sm_surf_monthly_2015_2026.tif",    1.0,      0.0),  # 138 bands
-    ("dewpoint_c", "dewpoint_k_monthly_2003_2026.tif", 1.0,   -273.15),
-    # wind_ms excluded: ERA5-Land wind speed export fails in GEE staging (null image bug).
-    # Re-add ("wind_ms", "wind_speed_monthly_2003_2026.tif", 1.0, 0.0) once resolved.
+    ("rain_mm",    "rain_mm_monthly_2003_2024.tif",    1.0,      0.0),
+    ("t2m_c",      "t2m_k_monthly_2003_2024.tif",      1.0,   -273.15),
+    ("ndvi",       "ndvi_monthly_2003_2024.tif",       1e-4,     0.0),
+    ("evi",        "evi_monthly_2003_2024.tif",        1e-4,     0.0),
+    ("et_mm",      "et_monthly_2003_2024.tif",         0.1,      0.0),
+    ("lst_c",      "lst_day_k_monthly_2003_2024.tif",  0.02,  -273.15),
+    ("sm_surf",    "sm_surf_monthly_2015_2024.tif",    1.0,      0.0),  # 106 bands, starts Mar 2015
+    ("dewpoint_c", "dewpoint_k_monthly_2003_2024.tif", 1.0,   -273.15),
+    ("wind_ms",    "wind_speed_monthly_2003_2024.tif", 1.0,      0.0),
 ]
 
 # (channel_name, filename, band_index_in_file)
@@ -75,7 +74,7 @@ def load_tif(path: Path | str) -> np.ndarray:
 
 
 def build_dynamic(data_dir: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Load all 8 dynamic channels → (T=282, C=8, H, W) float32.
+    """Load all 9 dynamic channels → (T=252, C=9, H, W) float32.
 
     SMAP has only 138 bands (January 2015 onward). We create a full 282-band
     array pre-filled with NaN and place the SMAP values at t=144..281.
@@ -124,7 +123,7 @@ def build_labels(
 
     Parameters
     ----------
-    dynamic   : (T, 8, H, W) float32
+    dynamic   : (T, 9, H, W) float32
     mask      : (H, W) bool
     train_end : fit normalization stats on indices 0 … train_end-1 only
 
@@ -198,7 +197,7 @@ def assemble(data_dir: str | Path, out_dir: str | Path) -> None:
             "H": H,
             "W": W,
         },
-        "time": {"start": "2003-01", "end": "2026-06", "T": T},
+        "time": {"start": "2003-01", "end": "2023-12", "T": T},
         "dynamic_channels": [ch[0] for ch in DYNAMIC_CHANNELS],
         "static_channels":  [ch[0] for ch in STATIC_CHANNELS],
         "label_channels":   ["spi3", "ndvi_anom", "sm_anom"],
