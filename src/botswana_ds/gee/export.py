@@ -148,16 +148,19 @@ def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", regio
     def per_month(m0):
         m0 = ee.Date(m0)
         m1 = m0.advance(1, "month")
-        monthly_col = era5.filterDate(m0, m1)
-        # Fully-masked fallback for months with no data (processing lag / future months)
+        monthly_col = era5.filterDate(m0, m1).select(
+            ["u_component_of_wind_10m", "v_component_of_wind_10m"]
+        )
+        # Fully-masked fallback placed first so real data (added via merge) always wins.
+        # mosaic() takes the last valid pixel — monthly_col images override the masked
+        # fallback wherever data exists; months with no data stay fully masked.
+        # This avoids ee.Algorithms.If which has type-inference issues inside map().
         filled = (
             ee.Image.constant([0.0, 0.0])
             .rename(["u_component_of_wind_10m", "v_component_of_wind_10m"])
             .updateMask(ee.Image.constant(0))
         )
-        img = ee.Image(
-            ee.Algorithms.If(monthly_col.size().gt(0), monthly_col.first(), filled)
-        )
+        img = ee.ImageCollection([filled]).merge(monthly_col).mosaic()
         u = img.select("u_component_of_wind_10m")
         v = img.select("v_component_of_wind_10m")
         speed = u.pow(2).add(v.pow(2)).sqrt().rename("wind_speed")
