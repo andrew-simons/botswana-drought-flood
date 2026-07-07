@@ -7,20 +7,20 @@ venv/
 
 # Notebook outputs are stripped before commit (nbstripout or clear-all-outputs)
 
-# Data lives in Google Drive, NOT in git — only keep small metadata/pointers
-data/raw/
-data/processed/
-data/splits/
-*.tif
-*.tiff
-*.npy
-*.zarr/
-*.nc
+# Data lives in Google Drive, NOT in git
+/data/
 
-# Models (weights can be large; keep configs, push weights to HF Hub / releases)
-models/*.pt
-models/*.pth
-models/*.safetensors
+# Build artifacts
+src/*.egg-info/
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Claude Code internals
+.claude/
 
 # Secrets
 *.key

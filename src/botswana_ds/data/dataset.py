@@ -83,7 +83,18 @@ class BotswanaCube(Dataset):
     def __getitem__(self, i: int):
         s = self.starts[i]
         x = np.asarray(self.dynamic[s : s + self.input_len], dtype=np.float32)
-        x = self._normalize(x)                                   # (L, C, H, W)
+        x = self._normalize(x)                                   # (L, C_dyn, H, W)
+
+        # Append lagged label values as extra input channels (DroughtSet approach).
+        # Gives the model a direct read on the current anomaly state — without this,
+        # the model must re-derive SPI/NDVI-anom/SM-anom from raw drivers from scratch,
+        # which takes far more training epochs than we can afford.
+        labels_lag = np.asarray(
+            self.labels[s : s + self.input_len], dtype=np.float32
+        )                                                        # (L, 3, H, W)
+        labels_lag = np.nan_to_num(labels_lag)                   # NaN -> 0 (= normal)
+        x = np.concatenate([x, labels_lag], axis=1)             # (L, C_dyn+3, H, W)
+
         y = np.asarray(
             self.labels[s + self.input_len : s + self.input_len + self.horizon],
             dtype=np.float32,

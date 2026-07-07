@@ -22,6 +22,17 @@ BOTSWANA_BBOX = (20.0, -26.9, 29.4, -17.8)  # (min_lon, min_lat, max_lon, max_la
 # CHIRPS native resolution = 0.05 degrees (~5.5 km). We adopt it as the grid step.
 GRID_RES_DEG = 0.05
 
+# GEE crsTransform that locks every export to this exact pixel grid.
+# Format: [xScale, xShear, xTranslation, yShear, yScale, yTranslation]
+# xTranslation/yTranslation are the top-left CORNER of the top-left pixel.
+GEE_CRS_TRANSFORM = [GRID_RES_DEG, 0, 20.0, 0, -GRID_RES_DEG, -17.8]
+
+# Exact pixel dimensions of the grid — used alongside crsTransform in GEE exports
+# to guarantee an integer pixel count without relying on floating-point bbox math.
+GRID_COLS = int(round((BOTSWANA_BBOX[2] - BOTSWANA_BBOX[0]) / GRID_RES_DEG))  # 188
+GRID_ROWS = int(round((BOTSWANA_BBOX[3] - BOTSWANA_BBOX[1]) / GRID_RES_DEG))  # 182
+GEE_DIMENSIONS = f"{GRID_COLS}x{GRID_ROWS}"                                    # "188x182"
+
 
 @dataclass(frozen=True)
 class Grid:

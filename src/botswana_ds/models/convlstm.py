@@ -61,7 +61,7 @@ class ConvLSTMForecaster(nn.Module):
         self.static_ch = static_ch
 
     def forward(self, x, static=None):
-        # x: (B, L, C, H, W)
+        # x: (B, L, C, H, W)  — last n_targets channels are lagged labels (BotswanaCube convention)
         B, L, C, H, W = x.shape
         h, c = self.cell.init_state(B, (H, W), x.device)
         for t in range(L):
@@ -70,7 +70,14 @@ class ConvLSTMForecaster(nn.Module):
                 xt = torch.cat([xt, static], dim=1)            # broadcast static each step
             h, c = self.cell(xt, (h, c))
         out = self.head(h)                                     # (B, horizon*n_targets, H, W)
-        return out.view(B, self.horizon, self.n_targets, H, W)
+        out = out.view(B, self.horizon, self.n_targets, H, W)
+
+        # Residual connection: add the label from the last input timestep so that a
+        # zero-initialised model outputs exactly persistence.  The model then only
+        # needs to learn the *change* from label[t-1], which is much easier than
+        # learning the absolute value from scratch.
+        prev_label = x[:, -1, -self.n_targets:]               # (B, n_targets, H, W)
+        return out + prev_label.unsqueeze(1)                   # broadcast over horizon
 
 
 def masked_mae_loss(pred, target, mask):
@@ -78,3 +85,24 @@ def masked_mae_loss(pred, target, mask):
     diff = torch.abs(pred - target)
     m = mask.float()
     return (diff * m).sum() / (m.sum() + 1e-6)
+
+
+def drought_weighted_mae_loss(
+    pred, target, mask, threshold: float = -0.52, drought_weight: float = 3.0
+):
+    """MAE with drought-range pixels upweighted.
+
+    Without this, plain MAE is minimised by predicting near-zero (normal) for
+    every pixel — drought events are rare enough that ignoring them is the
+    loss-optimal strategy, causing F1 ≈ 0.  Upweighting pixels where any label
+    is below `threshold` (≈ 30th percentile, drought onset) forces the model to
+    pay attention to those events.
+    """
+    diff = torch.abs(pred - target)
+    weight = torch.where(
+        target < threshold,
+        torch.full_like(target, drought_weight),
+        torch.ones_like(target),
+    )
+    m = mask.float()
+    return (diff * weight * m).sum() / ((weight * m).sum() + 1e-6)

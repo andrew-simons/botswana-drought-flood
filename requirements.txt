@@ -22,8 +22,11 @@ shap>=0.44
 captum>=0.7           # Integrated Gradients for PyTorch
 
 # --- demo app (week 8) ---
-streamlit>=1.33
-folium>=0.16
+streamlit>=1.38
+streamlit-folium>=0.22
+folium>=0.17
+plotly>=5.20
+Pillow>=10.0
 
 # NOTE: in Google Colab, earthengine-api, geemap, torch, numpy, pandas are
 # already available. You mainly need:  pip install geemap rioxarray xgboost captum shap

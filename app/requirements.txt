@@ -1,0 +1,11 @@
+# Streamlit Cloud reads this file when deploying from the app/ directory.
+# Kept lightweight — no PyTorch or GEE needed at runtime (models are pre-computed).
+streamlit>=1.38
+streamlit-folium>=0.22
+folium>=0.17
+plotly>=5.20
+numpy>=1.26
+pandas>=2.1
+matplotlib>=3.8
+Pillow>=10.0
+requests>=2.31
