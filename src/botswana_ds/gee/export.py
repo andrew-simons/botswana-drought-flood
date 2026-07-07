@@ -143,12 +143,11 @@ def monthly_wind_speed(start: str = "2003-01-01", end: str = "2024-01-01", regio
     def to_speed(img):
         u = img.select("u_component_of_wind_10m")
         v = img.select("v_component_of_wind_10m")
-        return (
-            u.pow(2).add(v.pow(2)).sqrt()
-            .rename("wind_speed")
-            .set("system:time_start", img.get("system:time_start"))
-            .clip(region)
-        )
+        # Pure function — no closure over region. Closing over a deferred
+        # geometry inside ImageCollection.map() serialises it into GEE's
+        # algorithm graph and can produce null images server-side.
+        # filterBounds + the export task's region parameter handle clipping.
+        return u.pow(2).add(v.pow(2)).sqrt().rename("wind_speed")
 
     return (
         ee.ImageCollection("ECMWF/ERA5_LAND/MONTHLY_AGGR")
